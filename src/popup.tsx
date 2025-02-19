@@ -6,8 +6,6 @@ import React, { useEffect, useState } from "react"
 
 import "tailwindcss/base.css"
 
-import { width } from "dom-helpers"
-
 // dumpCookies 获取数据，并将其传递给父组件
 function dumpCookies(setData) {
   chrome.runtime.sendMessage({ type: "dump_cookies" }, (response) => {
