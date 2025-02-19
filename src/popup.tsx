@@ -1,6 +1,6 @@
 // import 'bootstrap/dist/css/bootstrap.min.css';
 import { DownloadOutlined } from "@ant-design/icons"
-import { Button, Divider, Flex, message, Radio, Table } from "antd"
+import { Button, Divider, Flex, message, Radio, Select, Table } from "antd"
 import type { SizeType } from "antd/es/config-provider/SizeContext"
 import React, { useEffect, useState } from "react"
 
@@ -11,6 +11,21 @@ function dumpCookies(setData) {
   chrome.runtime.sendMessage({ type: "dump_cookies" }, (response) => {
     // 假设 response 中包含了 cookies 数据
     console.log("response", response)
+    response.cookies.map((item) => {
+      // "hostOnly",
+      // "sameSite",
+      // "session",
+      // "storeId",
+      // "expirationDate"
+      item.expires = item.expirationDate
+      delete item.hostOnly
+      delete item.sameSite
+      delete item.session
+      delete item.storeId
+      delete item.expirationDate
+
+      return item
+    })
     setData(response) // 将获取到的 cookies 数据更新到 state
   })
 }
@@ -67,32 +82,32 @@ function IndexPopup() {
   const downloadAsCsv = () => {
     let headers =
       [
-        "domain",
-        "hostOnly",
-        "httpOnly",
-        "path",
-        "sameSite",
-        "secure",
-        "session",
-        // "storeId",
         "name",
         "value",
-        "expirationDate"
+        "domain",
+        "path",
+        "expires",
+        "httpOnly",
+        "secure"
+        // "hostOnly",
+        // "sameSite",
+        // "session",
+        // "storeId",
       ].join(",") + "\n"
     const textContent = data.cookies
       .map((item) =>
         [
-          item.domain,
-          item.hostOnly,
-          item.httpOnly,
-          item.path,
-          item.sameSite,
-          item.secure,
-          item.session,
-          // item.storeId,
           item.name,
           item.value,
-          item.expirationDate
+          item.domain,
+          item.path,
+          item.expires,
+          // item.hostOnly,
+          item.httpOnly,
+          // item.sameSite,
+          item.secure
+          // item.session,
+          // item.storeId,
         ].join(",")
       )
       .join("\n")
@@ -113,9 +128,17 @@ function IndexPopup() {
         console.error("Error copying text: ", err)
       })
   }
+  const options = ["json", "csv", "txt"]
   return (
     <div>
       <Flex gap="small" wrap style={{ width: "600px" }}>
+        {/*<Select*/}
+        {/*  style={{ width: "80px" }}*/}
+        {/*  options={options.map((item) => {*/}
+        {/*    return { label: item, value: item }*/}
+        {/*  })}*/}
+        {/*  defaultValue={"json"}>*/}
+        {/*</Select>*/}
         <Button
           type="primary"
           icon={<DownloadOutlined />}
@@ -156,6 +179,7 @@ function IndexPopup() {
         rowKey="name" // 每行的唯一标识
         size={"small"}
         pagination={false}
+        style={{ maxWidth: "600px", overflowX: "scroll" }} // 设置表格的最大宽度
       />
     </div>
   )

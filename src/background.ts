@@ -5,8 +5,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
       let tab = tabs[0]
       const url = new URL(tab.url)
       console.log("url", url, "origin", url.origin)
-      chrome.cookies.getAll({}, (cookies) => {
-        cookies = cookies.filter((cookie) => url.origin.includes(cookie.domain))
+      chrome.cookies.getAll({ url: tab.url }, (cookies) => {
         console.log("cookies", cookies)
         response({ url: url.host, cookies })
       })
