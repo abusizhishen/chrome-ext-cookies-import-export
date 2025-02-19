@@ -43,7 +43,7 @@ function IndexPopup() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `cookies_${data.url.host}_${new Date().valueOf()}.${ext}`
+    link.download = `cookies_${data.url}_${new Date().valueOf()}.${ext}`
     link.click()
     URL.revokeObjectURL(url) // Clean up
   }

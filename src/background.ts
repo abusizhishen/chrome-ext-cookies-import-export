@@ -8,7 +8,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
       chrome.cookies.getAll({}, (cookies) => {
         cookies = cookies.filter((cookie) => url.origin.includes(cookie.domain))
         console.log("cookies", cookies)
-        response({ url: url, cookies: cookies })
+        response({ url: url.host, cookies })
       })
     })
     return true
