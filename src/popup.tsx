@@ -1,6 +1,17 @@
 // import 'bootstrap/dist/css/bootstrap.min.css';
-import { DownloadOutlined } from "@ant-design/icons"
-import { Button, Divider, Flex, message, Radio, Select, Table } from "antd"
+import { DownloadOutlined, UploadOutlined } from "@ant-design/icons"
+import {
+  Button,
+  Divider,
+  Flex,
+  Input,
+  message,
+  Radio,
+  Select,
+  Table,
+  Upload,
+  type UploadProps
+} from "antd"
 import type { SizeType } from "antd/es/config-provider/SizeContext"
 import React, { useEffect, useState } from "react"
 
@@ -17,17 +28,44 @@ function dumpCookies(setData) {
       // "session",
       // "storeId",
       // "expirationDate"
-      item.expires = item.expirationDate
-      delete item.hostOnly
-      delete item.sameSite
+      // item.expires = item.expirationDate
+      delete item.httpOnly
+
+      // delete item.sameSite
       delete item.session
       delete item.storeId
-      delete item.expirationDate
+      // delete item.expirationDate
+      // delete item.value
 
       return item
     })
     setData(response) // 将获取到的 cookies 数据更新到 state
   })
+}
+
+async function getActiveTabUrl() {
+  const tabs = await chrome.tabs.query({
+    active: true,
+    currentWindow: true
+  })
+
+  const activeTab = tabs[0]
+  let origin
+  try {
+    const url = new URL(activeTab.url)
+    origin = url.origin
+  } catch (error) {
+    console.error("无法解析URL:", activeTab.url, error)
+    // 对于某些特殊页面（chrome://, about:等），无法使用URL API
+    origin = activeTab.url
+  }
+
+  console.log("激活标签页的origin:", origin)
+  console.log("完整URL:", activeTab.url)
+  console.log("标签页ID:", activeTab.id)
+  console.log("标题:", activeTab.title)
+
+  return origin
 }
 
 function IndexPopup() {
@@ -88,11 +126,11 @@ function IndexPopup() {
         "path",
         "expires",
         "httpOnly",
-        "secure"
-        // "hostOnly",
-        // "sameSite",
-        // "session",
-        // "storeId",
+        "secure",
+        "hostOnly",
+        "sameSite",
+        "session",
+        "storeId"
       ].join(",") + "\n"
     const textContent = data.cookies
       .map((item) =>
@@ -102,12 +140,12 @@ function IndexPopup() {
           item.domain,
           item.path,
           item.expires,
-          // item.hostOnly,
+          item.hostOnly,
           item.httpOnly,
-          // item.sameSite,
-          item.secure
-          // item.session,
-          // item.storeId,
+          item.sameSite,
+          item.secure,
+          item.session,
+          item.storeId
         ].join(",")
       )
       .join("\n")
@@ -129,9 +167,56 @@ function IndexPopup() {
       })
   }
   const options = ["json", "csv", "txt"]
+
+  const readFromCsv = (text) => {
+    return text
+      .trim()
+      .split("\n")
+      .map((line) => line.split(","))
+  }
+  const readFromJson = (text) => {
+    return JSON.parse(text)
+  }
+
+  const props: UploadProps = {
+    onChange({ file, fileList }) {
+      if (file.status !== "uploading") {
+        console.log(file, fileList)
+
+        let read = file.name.endsWith(".csv") ? readFromCsv : readFromJson
+
+        const reader = new FileReader()
+
+        reader.onload = (e) => {
+          const text = e.target.result
+          // console.log("content ", text)
+          // You can then parse the CSV manually or with a CSV parser
+          let cookies = read(text)
+          console.log("cookies: ", cookies)
+
+          getActiveTabUrl().then((url) => {
+            chrome.runtime.sendMessage(
+              { type: "import_cookies", data: { cookies, url } },
+              (response) => {
+                // 假设 response 中包含了 cookies 数据
+
+                console.log("response", response)
+              }
+            )
+          })
+        }
+
+        reader.readAsText(file.originFileObj)
+      }
+      console.log(file)
+    },
+    showUploadList: false,
+    accept: ".csv,.json"
+  }
+
   return (
     <div>
-      <Flex gap="small" wrap style={{ width: "600px" }}>
+      <Flex gap="small" wrap style={{ width: "800px" }}>
         {/*<Select*/}
         {/*  style={{ width: "80px" }}*/}
         {/*  options={options.map((item) => {*/}
@@ -139,13 +224,13 @@ function IndexPopup() {
         {/*  })}*/}
         {/*  defaultValue={"json"}>*/}
         {/*</Select>*/}
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={downloadAsTxt} // 获取 cookies 后更新数据
-          size={size}>
-          export as txt
-        </Button>
+        {/*<Button*/}
+        {/*  type="primary"*/}
+        {/*  icon={<DownloadOutlined />}*/}
+        {/*  onClick={downloadAsTxt} // 获取 cookies 后更新数据*/}
+        {/*  size={size}>*/}
+        {/*  export as txt*/}
+        {/*</Button>*/}
 
         <Button
           type="primary"
@@ -171,6 +256,9 @@ function IndexPopup() {
           size={size}>
           copy
         </Button>
+        <Upload {...props}>
+          <Button icon={<UploadOutlined />}>import from csv/json </Button>
+        </Upload>
       </Flex>
 
       <Table
@@ -179,7 +267,7 @@ function IndexPopup() {
         rowKey="name" // 每行的唯一标识
         size={"small"}
         pagination={false}
-        style={{ maxWidth: "600px", overflowX: "scroll" }} // 设置表格的最大宽度
+        style={{ maxWidth: "800px", overflowX: "scroll" }} // 设置表格的最大宽度
       />
     </div>
   )
