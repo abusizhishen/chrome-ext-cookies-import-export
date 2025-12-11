@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
           value: cookie.value,
           domain: cookie.domain || "",
           path: cookie.path || "/",
-          secure: cookie.secure === "true",
+          secure: cookie.secure || false,
           httpOnly: cookie.httpOnly || false,
           sameSite: cookie.sameSite || "lax"
         }
