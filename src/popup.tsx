@@ -4,8 +4,10 @@ import {
   Button,
   Divider,
   Flex,
+  Form,
   Input,
   message,
+  Modal,
   Radio,
   Select,
   Table,
@@ -14,8 +16,11 @@ import {
 } from "antd"
 import type { SizeType } from "antd/es/config-provider/SizeContext"
 import React, { useEffect, useState } from "react"
+import { readString } from "react-native-csv"
 
 import "tailwindcss/base.css"
+
+import TextArea from "antd/es/input/TextArea"
 
 // dumpCookies 获取数据，并将其传递给父组件
 function dumpCookies(setData) {
@@ -126,11 +131,11 @@ function IndexPopup() {
         "path",
         "expires",
         "httpOnly",
-        "secure",
         "hostOnly",
-        "sameSite",
-        "session",
-        "storeId"
+        "secure",
+        "sameSite"
+        // "session",
+        // "storeId"
       ].join(",") + "\n"
     const textContent = data.cookies
       .map((item) =>
@@ -140,12 +145,12 @@ function IndexPopup() {
           item.domain,
           item.path,
           item.expires,
-          item.hostOnly,
           item.httpOnly,
-          item.sameSite,
+          item.hostOnly,
           item.secure,
-          item.session,
-          item.storeId
+          item.sameSite
+          // item.session,
+          // item.storeId
         ].join(",")
       )
       .join("\n")
@@ -169,10 +174,39 @@ function IndexPopup() {
   const options = ["json", "csv", "txt"]
 
   const readFromCsv = (text) => {
-    return text
-      .trim()
-      .split("\n")
-      .map((line) => line.split(","))
+    let config = {
+      delimiter: "", // auto-detect
+      newline: "", // auto-detect
+      quoteChar: '"',
+      escapeChar: '"',
+      header: true,
+      transformHeader: undefined,
+      dynamicTyping: false,
+      preview: 0,
+      encoding: "",
+      worker: false,
+      comments: false,
+      step: undefined,
+      complete: undefined,
+      error: undefined,
+      download: false,
+      downloadRequestHeaders: undefined,
+      skipEmptyLines: false,
+      chunk: undefined,
+      fastMode: undefined,
+      beforeFirstChunk: undefined,
+      withCredentials: undefined,
+      transform: undefined,
+      delimitersToGuess: [",", "	", "|", ";"]
+    }
+    return readString(text, config)
+      .data.map((item) => {
+        item.httpOnly = item.httpOnly === "true"
+        item.secure = item.secure === "true"
+        // item.sameSite = item.sameSite === "true"
+        return item
+      })
+      .filter((item) => item.domain)
   }
   const readFromJson = (text) => {
     return JSON.parse(text)
@@ -214,9 +248,63 @@ function IndexPopup() {
     accept: ".csv,.json"
   }
 
+  const [open, setOpen] = useState(false)
+
+  const showModal = () => {
+    setOpen(true)
+  }
+
+  const handleOk = (e: React.MouseEvent<HTMLElement>) => {
+    console.log(e)
+    setOpen(false)
+  }
+
+  const handleCancel = (e: React.MouseEvent<HTMLElement>) => {
+    console.log(e)
+    setOpen(false)
+  }
+
+  const handleSubmit = (e) => {
+    console.log(e)
+    let { type, cookies, url } = e
+    console.log("cookies: ", cookies)
+    try {
+      if (type === "csv") {
+        cookies = readFromCsv(cookies)
+      } else {
+        cookies = readFromJson(cookies)
+      }
+    } catch (e) {
+      console.error(e)
+      message.error("Could not parse cookies: ", e.message)
+    }
+
+    console.log("cookies: ", cookies)
+
+    chrome.runtime.sendMessage(
+      { type: "import_cookies", data: { cookies, url } },
+      (response) => {
+        // 假设 response 中包含了 cookies 数据
+
+        console.log("response", response)
+        if (response.success) {
+          message.success(response.message)
+        } else {
+          message.error(response.message)
+        }
+      }
+    )
+  }
+
   return (
-    <div>
-      <Flex gap="small" wrap style={{ width: "800px" }}>
+    <div
+      style={{ width: "800px", height: "500px", overflowX: "scroll" }} // 设置表格的最大宽度
+      className="flex-column">
+      <Flex
+        gap="small"
+        wrap
+        // style={{ width: "800px" }}
+      >
         {/*<Select*/}
         {/*  style={{ width: "80px" }}*/}
         {/*  options={options.map((item) => {*/}
@@ -256,9 +344,12 @@ function IndexPopup() {
           size={size}>
           copy
         </Button>
-        <Upload {...props}>
-          <Button icon={<UploadOutlined />}>import from csv/json </Button>
-        </Upload>
+        {/*<Upload {...props}>*/}
+        {/*  <Button icon={<UploadOutlined />}>import from csv/json </Button>*/}
+        {/*</Upload>*/}
+        <Button type="primary" onClick={showModal}>
+          上传cookie
+        </Button>
       </Flex>
 
       <Table
@@ -267,8 +358,49 @@ function IndexPopup() {
         rowKey="name" // 每行的唯一标识
         size={"small"}
         pagination={false}
-        style={{ maxWidth: "800px", overflowX: "scroll" }} // 设置表格的最大宽度
+        // style={{ maxWidth: "800px", overflowX: "scroll" }} // 设置表格的最大宽度
       />
+      <Modal
+        title="导入cookie"
+        open={open}
+        onOk={handleOk}
+        onCancel={handleCancel}
+        okButtonProps={{ disabled: true }}
+        cancelButtonProps={{ disabled: true }}
+        footer={null}>
+        <Form
+          name="wrap"
+          labelCol={{ flex: "110px" }}
+          labelAlign="left"
+          labelWrap
+          wrapperCol={{ flex: 1 }}
+          colon={false}
+          style={{ maxWidth: 600 }}
+          onFinish={handleSubmit}>
+          <Form.Item label="type" name="type" rules={[{ required: true }]}>
+            <Radio.Group>
+              <Radio value="json"> Json </Radio>
+              <Radio value="csv"> Csv </Radio>
+            </Radio.Group>
+          </Form.Item>
+          <Form.Item label="Url" name="url" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            label="cookies"
+            name="cookies"
+            rules={[{ required: true }]}>
+            <TextArea rows={5} placeholder="cookies" />
+          </Form.Item>
+
+          <Form.Item label=" ">
+            <Button type="primary" htmlType="submit">
+              导入
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

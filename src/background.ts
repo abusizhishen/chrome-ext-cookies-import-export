@@ -24,12 +24,12 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
           value: cookie.value,
           domain: cookie.domain || "",
           path: cookie.path || "/",
-          secure: cookie.secure || false,
+          secure: cookie.secure === "true",
           httpOnly: cookie.httpOnly || false,
           sameSite: cookie.sameSite || "lax"
         }
 
-        // console.log("cookies", cookieDetails)
+        console.log("cookies", cookieDetails)
 
         // if (url) {
         //   cookieDetails.url = url.startsWith("http") ? url : `https://${url}`
@@ -42,11 +42,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
 
         chrome.cookies.set(cookieDetails, (result) => {
           if (chrome.runtime.lastError) {
-            console.error(
-              "cookie cookie error",
-              chrome.runtime.lastError,
-              result
-            )
+            console.error("cookie  error", chrome.runtime.lastError, result)
             reject(chrome.runtime.lastError)
           } else {
             resolve(result)
