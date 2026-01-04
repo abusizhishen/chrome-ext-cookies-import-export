@@ -1,9 +1,9 @@
 {
-  "name": "cookies-dump",
-  "displayName": "cookies-dump",
+  "name": "cookies-load-and-dump",
+  "displayName": "cookies-load-and-dump",
   "version": "0.0.1",
-  "description": "A basic Plasmo extension.",
-  "author": "Plasmo Corp. <foss@plasmo.com>",
+  "description": "",
+  "author": "咸鱼 https://m.tb.cn/h.76vROHo?tk=n45aUZYa2zr vx:zhuli1321 email:abusizhishen@gmail.com ",
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
@@ -14,7 +14,7 @@
     "antd": "^5.24.1",
     "bootstrap": "^5.3.3",
     "csvtojson": "^2.0.14",
-    "plasmo": "0.90.3",
+    "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-bootstrap": "^2.10.9",
     "react-csv-reader": "^4.0.0",

@@ -1,15 +1,7 @@
 chrome.runtime.onMessage.addListener((message, sender, response) => {
   console.log("background received message", message)
   if (message.type === "dump_cookies") {
-    chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      let tab = tabs[0]
-      const url = new URL(tab.url)
-      console.log("url", url, "origin", url.origin)
-      chrome.cookies.getAll({ url: tab.url }, (cookies) => {
-        console.log("cookies", cookies)
-        response({ url: url.host, cookies })
-      })
-    })
+    updateCookieBadge(response);
     return true
   } else if (message.type === "import_cookies") {
     const { url, cookies } = message.data
@@ -63,5 +55,40 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
       })
 
     return true // 保持消息通道开放
+  }
+})
+async function updateCookieBadge(response?:any) {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    let tab = tabs[0]
+    const url = new URL(tab.url)
+    console.log("url", url, "origin", url.origin)
+    chrome.cookies.getAll({ url: tab.url }, (cookies) => {
+      console.log("cookies", cookies)
+      if(response){
+        response({ url: url.host, cookies })
+      }
+
+      const count = cookies.length;
+      console.log('cookies count:', count)
+      chrome.action.setBadgeText({
+        text: count ? String(count) : ""
+      })
+
+      // chrome.action.setBadgeBackgroundColor({
+      //   color: "#fa541c"
+      // })
+
+    })
+  })
+}
+
+
+chrome.tabs.onActivated.addListener(() => {
+  updateCookieBadge()
+})
+
+chrome.tabs.onUpdated.addListener((_, changeInfo) => {
+  if (changeInfo.status === "complete") {
+    updateCookieBadge()
   }
 })

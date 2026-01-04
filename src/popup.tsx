@@ -33,7 +33,7 @@ function dumpCookies(setData) {
       // "session",
       // "storeId",
       // "expirationDate"
-      // item.expires = item.expirationDate
+      item.expires = item.expirationDate,
       delete item.httpOnly
 
       // delete item.sameSite
@@ -48,32 +48,74 @@ function dumpCookies(setData) {
   })
 }
 
-async function getActiveTabUrl() {
+// async function getActiveTabUrl() {
+//   // const tabs = await chrome.tabs.query({
+//   //   active: true,
+//   //   currentWindow: true
+//   // })
+//   //
+//   // const activeTab = tabs[0]
+//   // let origin
+//   // try {
+//   //   const url = new URL(activeTab.url)
+//   //   origin = url.origin
+//   // } catch (error) {
+//   //   console.error("无法解析URL:", activeTab.url, error)
+//   //   // 对于某些特殊页面（chrome://, about:等），无法使用URL API
+//   //   origin = activeTab.url
+//   // }
+//   //
+//   // console.log("激活标签页的origin:", origin)
+//   // console.log("完整URL:", activeTab.url)
+//   // console.log("标签页ID:", activeTab.id)
+//   // console.log("标题:", activeTab.title)
+//
+//   let urls = await getTabUrls()
+//   return urls[0]
+// }
+
+async function getTabUrls() {
   const tabs = await chrome.tabs.query({
-    active: true,
-    currentWindow: true
+    // active: true,
+    // currentWindow: true
   })
 
-  const activeTab = tabs[0]
-  let origin
-  try {
-    const url = new URL(activeTab.url)
-    origin = url.origin
-  } catch (error) {
-    console.error("无法解析URL:", activeTab.url, error)
-    // 对于某些特殊页面（chrome://, about:等），无法使用URL API
-    origin = activeTab.url
-  }
+  // const activeTab = tabs[0]
+  // let origin
+  // try {
+  //   const url = new URL(activeTab.url)
+  //   origin = url.origin
+  // } catch (error) {
+  //   console.error("无法解析URL:", activeTab.url, error)
+  //   // 对于某些特殊页面（chrome://, about:等），无法使用URL API
+  //   origin = activeTab.url
+  // }
+  //
+  // console.log("激活标签页的origin:", origin)
+  // console.log("完整URL:", activeTab.url)
+  // console.log("标签页ID:", activeTab.id)
+  // console.log("标题:", activeTab.title)
 
-  console.log("激活标签页的origin:", origin)
-  console.log("完整URL:", activeTab.url)
-  console.log("标签页ID:", activeTab.id)
-  console.log("标题:", activeTab.title)
+  let urls = tabs
+      .map(tab => {
+        try {
+          return new URL(tab.url).origin
+        } catch {
+          return null
+        }
+      })
+      .filter(Boolean)
 
-  return origin
+  console.log('urls', urls)
+  return urls
 }
 
 function IndexPopup() {
+  useEffect(()=>{
+    dumpCookies(setData) // 页面加载时调用 dumpCookies
+    getTabUrls().then(urls=>setUrls([...new Set(urls)]))
+  },[])
+
   const [data, setData] = useState({ url: { host: "" }, cookies: [] })
 
   const columns = [
@@ -81,19 +123,16 @@ function IndexPopup() {
     { title: "Domain", dataIndex: "domain", key: "domain" },
     { title: "Path", dataIndex: "path", key: "path" },
     {
-      title: "Expiry",
-      dataIndex: "expiry",
-      key: "expiry",
+      title: "Expire",
+      dataIndex: "expires",
+      key: "expires",
       render: (text) =>
-        text ? new Date(text * 1000).toLocaleString() : "Session"
+        text ? new Date(text * 1000).toLocaleString() : "Session",
+      width:400
     },
     { title: "Value", dataIndex: "value", key: "value" }
   ]
 
-  // 在页面加载时自动调用 dumpCookies 获取数据
-  useEffect(() => {
-    dumpCookies(setData) // 页面加载时调用 dumpCookies
-  }, []) // 空数组作为依赖，意味着只在组件加载时调用一次
 
   const [size, setSize] = useState<SizeType>("middle") // default is 'middle'
 
@@ -101,7 +140,7 @@ function IndexPopup() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `cookies_${data.url}_${new Date().valueOf()}.${ext}`
+    link.download = `cookies_${data.url}.${ext}`
     link.click()
     URL.revokeObjectURL(url) // Clean up
   }
@@ -228,16 +267,16 @@ function IndexPopup() {
           let cookies = read(text)
           console.log("cookies: ", cookies)
 
-          getActiveTabUrl().then((url) => {
-            chrome.runtime.sendMessage(
-              { type: "import_cookies", data: { cookies, url } },
-              (response) => {
-                // 假设 response 中包含了 cookies 数据
-
-                console.log("response", response)
-              }
-            )
-          })
+          // getActiveTabUrl().then((url) => {
+          //   chrome.runtime.sendMessage(
+          //     { type: "import_cookies", data: { cookies, url } },
+          //     (response) => {
+          //       // 假设 response 中包含了 cookies 数据
+          //
+          //       console.log("response", response)
+          //     }
+          //   )
+          // })
         }
 
         reader.readAsText(file.originFileObj)
@@ -249,7 +288,8 @@ function IndexPopup() {
   }
 
   const [open, setOpen] = useState(false)
-
+  const [url, setUrl] = useState('')
+  const [urls, setUrls] = useState([])
   const showModal = () => {
     setOpen(true)
   }
@@ -267,6 +307,7 @@ function IndexPopup() {
   const handleSubmit = (e) => {
     console.log(e)
     let { type, cookies, url } = e
+    url = Array.isArray(url) ? url.filter(url=>url)[0] : e.url
     console.log("cookies: ", cookies)
     try {
       if (type === "csv") {
@@ -329,14 +370,14 @@ function IndexPopup() {
           export as json
         </Button>
 
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={downloadAsCsv} // 获取 cookies 后更新数据
-          size={size}
-          style={{ backgroundColor: "lightgreen" }}>
-          export as csv
-        </Button>
+        {/*<Button*/}
+        {/*  type="primary"*/}
+        {/*  icon={<DownloadOutlined />}*/}
+        {/*  onClick={downloadAsCsv} // 获取 cookies 后更新数据*/}
+        {/*  size={size}*/}
+        {/*  style={{ backgroundColor: "lightgreen" }}>*/}
+        {/*  export as csv*/}
+        {/*</Button>*/}
 
         <Button
           type="primary"
@@ -355,7 +396,7 @@ function IndexPopup() {
       <Table
         dataSource={data.cookies} // 表格的数据源
         columns={columns} // 表格的列
-        rowKey="name" // 每行的唯一标识
+        rowKey={(record) => `${record.domain}_${record.path}_${record.name}`}
         size={"small"}
         pagination={false}
         // style={{ maxWidth: "800px", overflowX: "scroll" }} // 设置表格的最大宽度
@@ -376,16 +417,35 @@ function IndexPopup() {
           wrapperCol={{ flex: 1 }}
           colon={false}
           style={{ maxWidth: 600 }}
-          onFinish={handleSubmit}>
+          onFinish={handleSubmit}
+          initialValues={{ // Set default values here
+            type:"json",
+            url: [],
+            // urls:urls,
+            // remember: true,
+          }}
+        >
           <Form.Item label="type" name="type" rules={[{ required: true }]}>
-            <Radio.Group>
-              <Radio value="json"> Json </Radio>
-              <Radio value="csv"> Csv </Radio>
-            </Radio.Group>
+            <Radio.Group  options={[{value: 'json', label: 'json'}]}/>
           </Form.Item>
-          <Form.Item label="Url" name="url" rules={[{ required: true }]}>
-            <Input />
+          {/*<Form.Item label="Url" name="url" rules={[{ required: true }]} >*/}
+          {/*  <Input />*/}
+          {/*</Form.Item>*/}
+          <Form.Item label="Url" name="url" rules={[{ required: true }]} >
+            <Select
+                mode="tags"
+                showSearch
+                maxTagCount={1}
+                // showSearch={{ optionFilterProp: 'label',  }}
+                placeholder="选择或者输入url"
+                // onChange={onChange}
+                options={urls.map((item) => {return{
+                  value: item,
+                  label: item,
+                }})}
+            />
           </Form.Item>
+
 
           <Form.Item
             label="cookies"
