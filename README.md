@@ -2,11 +2,10 @@
 
 # done
 
-- [x] cookies export as txt,json,csv
+- [x] cookies export as json
 - [x] cookies copy to clipboard
 
 # todo
 
-- [ ] cookies delete
-- [ ] cookies edit
-- [ ] cookies import
+
+- [x] cookies import
